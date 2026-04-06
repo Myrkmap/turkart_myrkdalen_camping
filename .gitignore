@@ -1,0 +1,9 @@
+# Claude Code konfigurasjon (lokal)
+.claude/
+
+# Gamle datafiler
+stinett.geojson
+stinett-data.js
+
+# Bilder (lagra i Supabase Storage i staden)
+bilder/
