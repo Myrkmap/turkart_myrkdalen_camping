@@ -733,7 +733,7 @@
         id:     'interessepunkt-sirklar',
         type:   'circle',
         source: 'interessepunkt',
-        filter: ['!', ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping']]]],
+        filter: ['!', ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping', 'butikk']]]],
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6, 14, 10],
           'circle-color': [
@@ -753,7 +753,8 @@
       const IKON_MAP = {
         parkering:         { fil: 'parking',          farge: null },
         hytte:             { fil: 'hytte',            farge: null },
-        myrkdalen_camping: { fil: 'myrkdalen_camping', farge: null }
+        myrkdalen_camping: { fil: 'myrkdalen_camping', farge: null },
+        butikk:            { fil: 'butikk',           farge: null }
       };
 
       /* Fargesetje eit bilete via canvas */
@@ -791,7 +792,7 @@
         id:     'interessepunkt-ikon',
         type:   'symbol',
         source: 'interessepunkt',
-        filter: ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping']]],
+        filter: ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping', 'butikk']]],
         layout: {
           'icon-image': ['coalesce', ['get', 'ikon'], ['get', 'type']],
           'icon-size':              ['interpolate', ['linear'], ['zoom'], 9, 0.4, 14, 0.7],
