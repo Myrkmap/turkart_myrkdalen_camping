@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file *)",
+      "Bash(grep -c '\"\"features\"\"' stinett.geojson)",
+      "Bash(python3 -c \"import json; f=json.load\\(open\\(''stinett.geojson''\\)\\); print\\(f''Total features: {len\\(f[\"\"features\"\"]\\)}''\\); print\\(f''Sample feature properties: {list\\(f[\"\"features\"\"][0][\"\"properties\"\"].keys\\(\\)\\)}''\\)\")",
+      "Bash(python3 -c \"import json; f=json.load\\(open\\(''stinett.geojson''\\)\\); geom=f[''features''][0][''geometry'']; print\\(f''Geometry type: {geom[\"\"type\"\"]}''\\); print\\(f''Coordinates count: {len\\(geom[\"\"coordinates\"\"]\\)}''\\)\")"
+    ]
+  }
+}

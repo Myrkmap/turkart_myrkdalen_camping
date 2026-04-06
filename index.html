@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="nn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stikart – Myrkdalen</title>
+
+  <!-- ① Bakgrunnskart – MapLibre GL JS v4 -->
+  <link href="./maplibre-gl.css" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Arial, sans-serif;
+      background: #ede8e1;
+    }
+
+    /* ── MAP ── */
+    #map { position: absolute; inset: 0; }
+
+    /* ── LOADING ── */
+    #laster {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: #ede8e1; z-index: 200;
+      transition: opacity 0.4s ease;
+    }
+    #laster.ferdig { opacity: 0; pointer-events: none; }
+    .laster-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #d4cec6; border-top-color: #6e8c5a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #laster p { font-size: 14px; color: #888; letter-spacing: 0.02em; }
+
+    /* ── LEGEND ── */
+    #legende {
+      position: absolute; bottom: 36px; left: 16px;
+      background: rgba(255,255,255,0.96);
+      border-radius: 14px; padding: 14px 16px 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+      z-index: 10; min-width: 190px;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    #legende h3 {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: #999; margin-bottom: 10px;
+    }
+    .legende-rad {
+      display: flex; align-items: center; gap: 9px;
+      margin-bottom: 7px; font-size: 13px; color: #333;
+    }
+    .legende-farge { width: 22px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+    #nullstill-knapp {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: 11px; padding: 7px 10px; width: 100%;
+      background: #f0ede8; border: none; border-radius: 8px;
+      font-size: 12px; font-family: inherit; color: #555; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    #nullstill-knapp:hover { background: #e5e0d8; color: #222; }
+
+    /* ── INFO PANEL ── */
+    #infopanel {
+      position: absolute; top: 0; right: 0;
+      width: 340px; height: 100%;
+      background: #fff;
+      box-shadow: -2px 0 28px rgba(0,0,0,0.13);
+      z-index: 20; display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+      overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    #infopanel.open { transform: translateX(0); }
+
+    #panel-bilete-wrap {
+      position: relative; width: 100%; height: 200px;
+      background: #e8e3db; flex-shrink: 0; overflow: hidden;
+    }
+    #panel-bilete { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #panel-bilete.skjult { display: none; }
+    #panel-placeholder {
+      position: absolute; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      font-size: 56px;
+      background: linear-gradient(145deg,#ddd8ce,#c8c0b4);
+    }
+    #lukk-knapp {
+      position: absolute; top: 12px; right: 12px;
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.92); border: none; border-radius: 50%;
+      font-size: 15px; cursor: pointer; color: #333;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.18); z-index: 30;
+      transition: background 0.15s, transform 0.15s;
+    }
+    #lukk-knapp:hover { background: #fff; transform: scale(1.08); }
+
+    .panel-innhald { padding: 18px 20px 40px; flex: 1; }
+    .panel-type-badge {
+      display: inline-block; padding: 3px 11px; border-radius: 20px;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: #fff; margin-bottom: 9px;
+    }
+    #panel-namn {
+      font-size: 22px; font-weight: 700; color: #1a1a1a;
+      margin-bottom: 16px; line-height: 1.22;
+    }
+    .panel-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 22px;
+    }
+    .stat-boks { background: #f7f4ef; border-radius: 11px; padding: 11px 14px; }
+    .stat-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: #aaa; margin-bottom: 3px;
+    }
+    .stat-verdi { font-size: 20px; font-weight: 700; color: #1a1a1a; line-height: 1.1; }
+    .stat-eining { font-size: 12px; font-weight: 500; color: #888; margin-left: 2px; }
+
+    .profil-overskrift {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      color: #aaa; margin-bottom: 8px;
+    }
+    #hoydeprofil-wrap {
+      background: #f7f4ef; border-radius: 11px;
+      padding: 10px 8px 6px; overflow: hidden;
+    }
+    #hoydeprofil { width: 100%; display: block; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 600px) {
+      #infopanel {
+        top: auto; bottom: 0; right: 0; left: 0;
+        width: 100%; height: auto; max-height: 75vh;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -4px 28px rgba(0,0,0,0.15);
+        transform: translateY(110%);
+      }
+      #infopanel.open { transform: translateY(0); }
+      #panel-bilete-wrap { height: 160px; }
+      #legende { bottom: 12px; left: 12px; padding: 11px 13px 10px; }
+    }
+
+    /* ── MAPLIBRE UI ── */
+    .maplibregl-ctrl-top-left { top: 12px; left: 12px; }
+    .maplibregl-ctrl-group {
+      border-radius: 10px !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
+    }
+    .maplibregl-ctrl-attrib { font-size: 10px; }
+  </style>
+</head>
+<body>
+
+  <div id="laster">
+    <div class="laster-spinner"></div>
+    <p>Lastar kart…</p>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Legende -->
+  <div id="legende">
+    <div class="legende-rad"><div class="legende-farge" style="background:#CC0000"></div>Sti</div>
+    <button id="nullstill-knapp">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+      </svg>
+      Nullstill kart
+    </button>
+    <div id="debug-teller" style="margin-top:8px;font-size:11px;color:#aaa;text-align:center;">Lastar stiar…</div>
+  </div>
+
+  <!-- Infopanel -->
+  <div id="infopanel">
+    <div id="panel-bilete-wrap">
+      <img id="panel-bilete" src="" alt="Bilete av stien">
+      <div id="panel-placeholder">🏔</div>
+      <button id="lukk-knapp" title="Lukk">✕</button>
+    </div>
+    <div class="panel-innhald">
+      <div id="panel-type-badge" class="panel-type-badge"></div>
+      <h2 id="panel-namn"></h2>
+      <div class="panel-stats">
+        <div class="stat-boks">
+          <div class="stat-label">Lengde</div>
+          <div class="stat-verdi" id="panel-lengde">–</div>
+        </div>
+        <div class="stat-boks">
+          <div class="stat-label">Stigning</div>
+          <div class="stat-verdi" id="panel-stigning">–</div>
+        </div>
+      </div>
+      <div class="profil-overskrift">Høgdeprofil</div>
+      <div id="hoydeprofil-wrap">
+        <canvas id="hoydeprofil" height="90"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    Kartlag-rekkefølge (bottom → top):
+      ① Bakgrunnskart  – OpenStreetMap via OpenFreeMap Bright (vector tiles)
+      ② Hillshading    – MapLibre hillshade-lag frå Mapterhorn DEM
+      ③ Terreng 3D     – Mapterhorn tiles.mapterhorn.com (Copernicus+Kartverket LiDAR, zoom 0–17)
+      ④ Stinett        – MapLibre native linjelag (drapar over 3D-terreng)
+      ⑤ UI-overlay     – Infopanel + legende (HTML/CSS)
+  -->
+
+  <!-- ① MapLibre GL JS v4 -->
+  <script src="./maplibre-gl.js"></script>
+
+  <!-- ④ Stinett rendert med MapLibre native linjelag (drapar over 3D-terreng) -->
+
+  <script>
+    /* ================================================================
+       KONFIGURASJON
+       ================================================================ */
+    const SUPABASE_URL     = 'https://tebynwryfadpnekxybpq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlYnlud3J5ZmFkcG5la3h5YnBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTYwNDIsImV4cCI6MjA3NjA5MjA0Mn0.myk5zcpcSm2aUADiLXswjDHqSq0PSwz0ijV11oTOdUo';
+
+    /* Mapterhorn streaming tile-teneste – TileJSON-endepunkt
+       Globalt Copernicus GLO-30 (zoom 0–12) + nasjonale LiDAR-data
+       for Noreg og andre EU-land (zoom 13–17, ~1m oppløysing frå Kartverket)
+       Kjelde: https://mapterhorn.com  |  EU-finansiert open data */
+    const MAPTERHORN_TILEJSON = 'https://tiles.mapterhorn.com/tilejson.json';
+
+    /* Fargar per stitype */
+    const FARGE_HEX = {
+      umerka_terreng: '#E07B39',
+      merka_sti:      '#2E7D32',
+      turveg:         '#1565C0',
+      anna:           '#757575'
+    };
+    const TYPE_LABEL = {
+      umerka_terreng: 'Umerka terreng',
+      merka_sti:      'Merka sti',
+      turveg:         'Turveg',
+      anna:           'Anna'
+    };
+
+    /* ================================================================
+       TILSTAND
+       ================================================================ */
+    let aktivSti         = null;
+    let hoveredFid       = null;
+    let stinettData      = { type: 'FeatureCollection', features: [] };
+    let interessepktData = { type: 'FeatureCollection', features: [] };
+    let stinettBbox      = null;
+
+    /* Ikon og farge per interessepunkt-type */
+    const IP_IKON = {
+      parkering:    '🅿️',
+      hytte:        '🏠',
+      butikk:       '🛍️',
+      utsiktspunkt: '🔭',
+      overnatting:  '🛏️'
+    };
+    const IP_FARGE = {
+      parkering:    '#1565C0',
+      hytte:        '#6D4C41',
+      butikk:       '#E65100',
+      utsiktspunkt: '#2E7D32',
+      overnatting:  '#6A1B9A'
+    };
+
+    /* ================================================================
+       NORMALISERING AV FELTNAMN
+       Støttar både eige format (fid, Merka, bilde, notat)
+       og spec-format (namn, type, lengde_m, bilete_url).
+       ================================================================ */
+    function getStiType(props) {
+      if (props.type) return props.type;
+      const m = props.merka ?? props.Merka;        // støttar både lower og upper case
+      if (m === true)  return 'merka_sti';
+      if (m === false) return 'umerka_terreng';
+      return 'anna';
+    }
+
+    function getStiNamn(props) {
+      return props.navn                            // Supabase (bokmål)
+          || props.namn                            // gamalt format (nynorsk)
+          || props.notat
+          || (props.id ? `Sti #${props.id.slice(0,8)}` : 'Ukjend sti');
+    }
+
+    function getStiId(props) {
+      return props.id ?? props.fid ?? props.namn ?? null;
+    }
+
+    function getStiBilete(props) {
+      return props.bilete_url || props.bilde || null;
+    }
+
+    /* ================================================================
+       HJELPEFUNKSJONAR
+       ================================================================ */
+    function haversine([lng1, lat1], [lng2, lat2]) {
+      const R = 6371000, rad = d => d * Math.PI / 180;
+      const dLat = rad(lat2 - lat1), dLng = rad(lng2 - lng1);
+      const a = Math.sin(dLat/2)**2
+              + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng/2)**2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function ruteLengde(coords) {
+      let d = 0;
+      for (let i = 1; i < coords.length; i++) d += haversine(coords[i-1], coords[i]);
+      return d;
+    }
+
+    function formatLengde(m) {
+      return m >= 1000
+        ? `${(m/1000).toFixed(1)}<span class="stat-eining">km</span>`
+        : `${Math.round(m)}<span class="stat-eining">m</span>`;
+    }
+
+    function getBbox(features) {
+      let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+      features.forEach(f => {
+        /* Flatar ut alle geometritypar til ei liste med [lng, lat]-par */
+        let coords = [];
+        const geom = f.geometry;
+        if (geom.type === 'Point') {
+          coords = [geom.coordinates];
+        } else if (geom.type === 'LineString') {
+          coords = geom.coordinates;
+        } else if (geom.type === 'MultiLineString') {
+          coords = geom.coordinates.flat(1);
+        }
+        coords.forEach(([x, y]) => {
+          if (x < minX) minX = x; if (y < minY) minY = y;
+          if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+        });
+      });
+      return [[minX, minY], [maxX, maxY]];
+    }
+
+    /* ================================================================
+       HØGDEPROFIL  (Canvas)
+       ================================================================ */
+    function drawElevationProfile(coordinates) {
+      const wrap   = document.getElementById('hoydeprofil-wrap');
+      const canvas = document.getElementById('hoydeprofil');
+      const dpr    = window.devicePixelRatio || 1;
+      const w      = wrap.clientWidth - 16;
+      const h      = 90;
+
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width  = w + 'px';
+      canvas.style.height = h + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      /* Høgder: bruk Z-koordinat frå GeoJSON (anbefalt), elles terrain-sampling */
+      const elevations = coordinates.map(coord => {
+        if (coord.length >= 3 && coord[2] !== 0) return coord[2];
+        try {
+          const el = map.queryTerrainElevation(
+            [coord[0], coord[1]], { exaggerated: false }
+          );
+          return el ?? 0;
+        } catch (_) { return 0; }
+      });
+
+      /* Kumulative avstandar */
+      const dists = [0];
+      for (let i = 1; i < coordinates.length; i++)
+        dists.push(dists[i-1] + haversine(coordinates[i-1], coordinates[i]));
+
+      const minE  = Math.min(...elevations);
+      const maxE  = Math.max(...elevations);
+      const spanE = (maxE - minE) || 1;
+      const maxD  = dists[dists.length - 1] || 1;
+
+      /* Total stigning */
+      let totalUp = 0;
+      for (let i = 1; i < elevations.length; i++) {
+        const diff = elevations[i] - elevations[i-1];
+        if (diff > 0) totalUp += diff;
+      }
+      document.getElementById('panel-stigning').innerHTML =
+        `${Math.round(totalUp)}<span class="stat-eining">hm</span>`;
+
+      /* Plottareal */
+      const px = 6, py = 10;
+      const pw = w - px*2;
+      const ph = h - py*2 - 14;
+
+      const toX = i => px + (dists[i] / maxD) * pw;
+      const toY = i => py + ph - ((elevations[i] - minE) / spanE) * ph;
+
+      /* Gradient-fyll */
+      const grad = ctx.createLinearGradient(0, py, 0, py + ph);
+      grad.addColorStop(0, 'rgba(95,145,75,0.45)');
+      grad.addColorStop(1, 'rgba(95,145,75,0.04)');
+
+      ctx.beginPath();
+      coordinates.forEach((_, i) => {
+        if (i === 0) ctx.moveTo(toX(i), toY(i));
+        else         ctx.lineTo(toX(i), toY(i));
+      });
+      ctx.lineTo(toX(coordinates.length - 1), py + ph);
+      ctx.lineTo(px, py + ph);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      /* Kurvelinje */
+      ctx.beginPath();
+      coordinates.forEach((_, i) => {
+        if (i === 0) ctx.moveTo(toX(i), toY(i));
+        else         ctx.lineTo(toX(i), toY(i));
+      });
+      ctx.strokeStyle = '#4a7c3a';
+      ctx.lineWidth   = 2;
+      ctx.lineJoin    = 'round';
+      ctx.lineCap     = 'round';
+      ctx.stroke();
+
+      /* Etiketter */
+      ctx.fillStyle = '#999';
+      ctx.font      = '9px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${Math.round(maxE)} moh`, px, py - 1);
+      ctx.fillText(`${Math.round(minE)} moh`, px, py + ph + 12);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${(maxD/1000).toFixed(1)} km`, px + pw, py + ph + 12);
+    }
+
+    /* ================================================================
+       INFOPANEL
+       ================================================================ */
+    function opnePanel(properties, coordinates) {
+      aktivSti = properties;
+
+      const img         = document.getElementById('panel-bilete');
+      const placeholder = document.getElementById('panel-placeholder');
+
+      /* Bilete – støttar både bilete_url (spec) og bilde (eige format) */
+      const bileteUrl = getStiBilete(properties);
+      if (bileteUrl) {
+        img.onload  = () => { img.classList.remove('skjult'); placeholder.style.display = 'none'; };
+        img.onerror = () => { img.classList.add('skjult');   placeholder.style.display = 'flex'; };
+        img.src     = bileteUrl;
+      } else {
+        img.classList.add('skjult');
+        placeholder.style.display = 'flex';
+      }
+
+      /* Namn – notat, namn, eller "Sti #fid" */
+      document.getElementById('panel-namn').textContent = getStiNamn(properties);
+
+      /* Stitype – utleidd frå Merka-feltet */
+      const type  = getStiType(properties);
+      const badge = document.getElementById('panel-type-badge');
+      badge.textContent      = TYPE_LABEL[type] || type;
+      badge.style.background = FARGE_HEX[type] || FARGE_HEX.anna;
+
+      /* Lengde – bruk lagra verdi eller rekn frå geometri */
+      const lengdeM = properties.lengde_m || properties.lengde
+                   || Math.round(ruteLengde(coordinates));
+      document.getElementById('panel-lengde').innerHTML   = formatLengde(lengdeM);
+      document.getElementById('panel-stigning').innerHTML = '–';
+
+      document.getElementById('infopanel').classList.add('open');
+
+      /* Teikn profil etter at panelet er synleg i DOM */
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => drawElevationProfile(coordinates))
+      );
+    }
+
+    function lukkPanel() {
+      document.getElementById('infopanel').classList.remove('open');
+      if (aktivSti && map.getSource('stinett')) {
+        map.setFeatureState({ source: 'stinett', id: getStiId(aktivSti) }, { active: false });
+      }
+      aktivSti = null;
+    }
+
+    document.getElementById('lukk-knapp').addEventListener('click', lukkPanel);
+
+    /* ================================================================
+       KART – INITIALISERING
+       ================================================================ */
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      /* ① Bakgrunnskart – OpenStreetMap via OpenFreeMap Bright (vector tiles, gratis) */
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [6.429, 60.856],
+      zoom:   10.3,
+      pitch:  0,
+      bearing: 0,
+      maxPitch: 70,
+      attributionControl: { compact: true }
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
+
+    map.on('load', async () => {
+
+      /* ────────────────────────────────────────────────────────────
+         ③ TERRENG 3D – Mapterhorn streaming tile-teneste
+         TileJSON definerer encoding, tileSize og maxzoom automatisk.
+         Gir Copernicus GLO-30 globalt + Kartverket LiDAR for Noreg
+         (zoom 13–17, ~1m oppløysing) utan å laste ned PMTiles-filer.
+         ──────────────────────────────────────────────────────────── */
+      map.addSource('mapterhorn', {
+        type:      'raster-dem',
+        url:       MAPTERHORN_TILEJSON,
+        encoding:  'terrarium',
+        tileSize:  512,
+        attribution: 'Terrengdata: <a href="https://mapterhorn.com">Mapterhorn</a> (EU open data, Kartverket)'
+      });
+
+      map.setTerrain({ source: 'mapterhorn', exaggeration: 1.3 });
+
+      /* ② HILLSHADING frå same DEM-kjelde */
+      const firstLineId = map.getStyle().layers.find(l => l.type === 'line')?.id;
+      map.addLayer({
+        id:     'hillshading',
+        type:   'hillshade',
+        source: 'mapterhorn',
+        paint: {
+          'hillshade-exaggeration':        0.28,
+          'hillshade-shadow-color':        'rgba(0,0,0,0.22)',
+          'hillshade-highlight-color':     '#ffffff',
+          'hillshade-illumination-anchor': 'map'
+        }
+      }, firstLineId); /* Bak veglag, framfor basefarge */
+
+      /* ── Last stinett-GeoJSON ──
+         Prioritet 1: global variabel frå stinett-data.js (fungerer utan server)
+         Prioritet 2: fetch() – fungerer på HTTP-server (Vercel/Netlify/npx serve)  */
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/features_geojson`,
+          {
+            headers: {
+              'apikey':        SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+        stinettData = {
+          type: 'FeatureCollection',
+          features: rows
+            .filter(row => row.geometry)
+            .map(row => ({
+              type: 'Feature',
+              id:   row.id,
+              geometry: row.geometry,
+              properties: {
+                ...row.properties,
+                id:      row.id,
+                _status: row.status
+              }
+            }))
+        };
+        console.info(`Stinett lasta frå Supabase (${stinettData.features.length} stiar)`);
+      } catch (err) {
+        console.error('Supabase kunne ikkje lastast:', err.message);
+      }
+
+      /* ── Last interessepunkt ── */
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/interessepunkt_geojson`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+        interessepktData = {
+          type: 'FeatureCollection',
+          features: rows.filter(r => r.geometry).map(r => ({
+            type: 'Feature',
+            id: r.id,
+            geometry: r.geometry,
+            properties: { id: r.id, namn: r.namn, type: r.type, ikon: r.ikon, beskriving: r.beskriving, bilete_url: r.bilete_url, link: r.link }
+          }))
+        };
+        console.info(`Interessepunkt lasta frå Supabase (${interessepktData.features.length} punkt)`);
+      } catch (err) {
+        console.error('Interessepunkt kunne ikkje lastast:', err.message);
+      }
+
+      const debugEl = document.getElementById('debug-teller');
+      if (stinettData.features.length > 0) {
+        stinettBbox = getBbox(stinettData.features);
+        if (debugEl) debugEl.textContent = `${stinettData.features.length} stiar lasta`;
+      } else {
+        if (debugEl) debugEl.textContent = 'FEIL: 0 stiar lasta!';
+        debugEl && (debugEl.style.color = '#c00');
+      }
+
+      /* ────────────────────────────────────────────────────────────
+         ④ STINETT – MapLibre native linjelag
+            Drapar automatisk over 3D-terreng (korrekt posisjonering).
+            promoteId: 'fid' → gjer feature-state tilgjengeleg per sti.
+         ──────────────────────────────────────────────────────────── */
+      map.addSource('stinett', {
+        type:      'geojson',
+        data:      stinettData,
+        promoteId: 'id'    /* gjer UUID til feature-ID for setFeatureState */
+      });
+
+      /* Lag A – usynleg breitt klikkareal (lettare å treffe tynne stiar) */
+      map.addLayer({
+        id:     'stinett-klikk',
+        type:   'line',
+        source: 'stinett',
+        paint:  { 'line-width': 20, 'line-opacity': 0 }
+      });
+
+      /* Lag B – kvit halo ved hover / aktiv sti */
+      map.addLayer({
+        id:     'stinett-halo',
+        type:   'line',
+        source: 'stinett',
+        layout: {
+          'line-cap':  'round',
+          'line-join': 'round'
+        },
+        paint: {
+          'line-color':   '#ffffff',
+          'line-blur':    3,
+          'line-opacity': [
+            'case',
+            ['any',
+              ['boolean', ['feature-state', 'hover'],  false],
+              ['boolean', ['feature-state', 'active'], false]
+            ], 0.65, 0
+          ],
+          'line-width': [
+            'case',
+            ['any',
+              ['boolean', ['feature-state', 'hover'],  false],
+              ['boolean', ['feature-state', 'active'], false]
+            ], 11, 0
+          ]
+        }
+      }, 'stinett-klikk');
+
+      /* Lag C – fargekoda stiar */
+      map.addLayer({
+        id:     'stinett',
+        type:   'line',
+        source: 'stinett',
+        paint: {
+          'line-color': '#CC0000',
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            9,  2,
+            13, 3,
+            16, 5
+          ],
+          'line-opacity': 0.95
+        },
+        layout: {
+          'line-cap':  'round',
+          'line-join': 'round'
+        }
+      }, 'stinett-klikk');
+
+      /* ── Hover ── */
+      map.on('mousemove', 'stinett-klikk', (e) => {
+        const fid = e.features[0]?.id;
+        if (fid === undefined) return;
+        map.getCanvas().style.cursor = 'pointer';
+        if (hoveredFid !== null && hoveredFid !== fid) {
+          map.setFeatureState({ source: 'stinett', id: hoveredFid }, { hover: false });
+        }
+        hoveredFid = fid;
+        map.setFeatureState({ source: 'stinett', id: hoveredFid }, { hover: true });
+      });
+
+      map.on('mouseleave', 'stinett-klikk', () => {
+        map.getCanvas().style.cursor = '';
+        if (hoveredFid !== null) {
+          map.setFeatureState({ source: 'stinett', id: hoveredFid }, { hover: false });
+          hoveredFid = null;
+        }
+      });
+
+      /* ── Klikk på sti ── */
+      map.on('click', 'stinett-klikk', (e) => {
+        const fid  = e.features[0]?.id;
+        const feat = stinettData.features.find(f => f.properties.id === fid);
+        if (!feat) return;
+        /* Fjern forrige aktiv */
+        if (aktivSti) {
+          map.setFeatureState({ source: 'stinett', id: getStiId(aktivSti) }, { active: false });
+        }
+        aktivSti = feat.properties;
+        map.setFeatureState({ source: 'stinett', id: fid }, { active: true });
+        opnePanel(feat.properties, feat.geometry.coordinates);
+      });
+
+      /* ── Klikk utanfor sti → lukk panel ── */
+      map.on('click', (e) => {
+        const treff = map.queryRenderedFeatures(e.point, { layers: ['stinett-klikk', 'interessepunkt-sirklar'] });
+        if (!treff.length) lukkPanel();
+      });
+
+      /* ────────────────────────────────────────────────────────────
+         ⑤ INTERESSEPUNKT – sirkellag med popup
+         ──────────────────────────────────────────────────────────── */
+      map.addSource('interessepunkt', {
+        type: 'geojson',
+        data: interessepktData
+      });
+
+      /* Sirklar for typar utan ikon */
+      map.addLayer({
+        id:     'interessepunkt-sirklar',
+        type:   'circle',
+        source: 'interessepunkt',
+        filter: ['!', ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping']]]],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6, 14, 10],
+          'circle-color': [
+            'match', ['get', 'type'],
+            'hytte',        '#6D4C41',
+            'butikk',       '#E65100',
+            'utsiktspunkt', '#2E7D32',
+            'overnatting',  '#6A1B9A',
+            '#888888'
+          ],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2
+        }
+      });
+
+      /* type → { fil, farge }  (farge = null = originalfarge) */
+      const IKON_MAP = {
+        parkering:         { fil: 'parking',          farge: null },
+        hytte:             { fil: 'hytte',            farge: null },
+        myrkdalen_camping: { fil: 'myrkdalen_camping', farge: null }
+      };
+
+      /* Fargesetje eit bilete via canvas */
+      const fargesetjIkon = (img, farge) => {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        if (farge) {
+          ctx.globalCompositeOperation = 'source-in';
+          ctx.fillStyle = farge;
+          ctx.fillRect(0, 0, c.width, c.height);
+        }
+        return c;
+      };
+
+      /* Last ikon via native Image når MapLibre etterspør det */
+      map.on('styleimagemissing', (e) => {
+        const conf = IKON_MAP[e.id];
+        if (conf && !map.hasImage(e.id)) {
+          const img = new Image();
+          img.onload = () => {
+            if (map.hasImage(e.id)) return;
+            if (conf.farge) {
+              map.addImage(e.id, fargesetjIkon(img, conf.farge));
+            } else {
+              map.addImage(e.id, img);
+            }
+          };
+          img.src = `ikoner/${conf.fil}.png`;
+        }
+      });
+
+      map.addLayer({
+        id:     'interessepunkt-ikon',
+        type:   'symbol',
+        source: 'interessepunkt',
+        filter: ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping']]],
+        layout: {
+          'icon-image': ['coalesce', ['get', 'ikon'], ['get', 'type']],
+          'icon-size':              ['interpolate', ['linear'], ['zoom'], 9, 0.4, 14, 0.7],
+          'icon-allow-overlap':     true,
+          'icon-ignore-placement':  true
+        }
+      });
+
+      /* Popup ved klikk på interessepunkt */
+      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '240px' });
+
+      map.on('click', 'interessepunkt-ikon', (e) => {
+        const p = e.features[0].properties;
+        const ikon = IP_IKON[p.type] || '📍';
+        popup
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family:system-ui;padding:4px 2px">
+              <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">${ikon} ${p.type || 'Interessepunkt'}</div>
+              <strong style="font-size:15px">${p.namn || 'Ukjend'}</strong>
+              ${p.beskriving ? `<p style="font-size:13px;color:#555;margin-top:6px">${p.beskriving}</p>` : ''}
+              ${p.link ? `<a href="${p.link}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;color:#1565C0;text-decoration:none;font-weight:600;">🔗 Besøk nettside</a>` : ''}
+            </div>
+          `)
+          .addTo(map);
+        e.stopPropagation();
+      });
+
+      map.on('click', 'interessepunkt-sirklar', (e) => {
+        const p = e.features[0].properties;
+        const ikon = IP_IKON[p.type] || '📍';
+        popup
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family:system-ui;padding:4px 2px">
+              <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">${ikon} ${p.type || 'Interessepunkt'}</div>
+              <strong style="font-size:15px">${p.namn || 'Ukjend'}</strong>
+              ${p.beskriving ? `<p style="font-size:13px;color:#555;margin-top:6px">${p.beskriving}</p>` : ''}
+              ${p.link ? `<a href="${p.link}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:12px;color:#1565C0;text-decoration:none;font-weight:600;">🔗 Besøk nettside</a>` : ''}
+            </div>
+          `)
+          .addTo(map);
+        e.stopPropagation();
+      });
+
+      map.on('mouseenter', 'interessepunkt-sirklar', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'interessepunkt-sirklar', () => { map.getCanvas().style.cursor = ''; });
+      map.on('mouseenter', 'interessepunkt-ikon', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'interessepunkt-ikon', () => { map.getCanvas().style.cursor = ''; });
+
+      /* ── Ferdig ── */
+      document.getElementById('laster').classList.add('ferdig');
+    });
+
+    /* ================================================================
+       NULLSTILL-KNAPP
+       ================================================================ */
+    document.getElementById('nullstill-knapp').addEventListener('click', () => {
+      hoveredObject = null;
+      lukkPanel(); /* set aktivSti = null og oppdaterer lag */
+      if (stinettBbox) {
+        map.fitBounds(stinettBbox, {
+          padding:  { top: 80, bottom: 80, left: 80, right: 380 },
+          pitch:    0,
+          bearing:  0,
+          duration: 1100,
+          maxZoom:  14
+        });
+      } else {
+        map.flyTo({ center: [6.274, 60.875], zoom: 12, pitch: 0, bearing: 0 });
+      }
+    });
+
+    /* ================================================================
+       RE-TEIKN PROFIL VED VINDAUGSENDRING
+       ================================================================ */
+    window.addEventListener('resize', () => {
+      if (!aktivSti) return;
+      if (!document.getElementById('infopanel').classList.contains('open')) return;
+      const feat = stinettData.features?.find(
+        f => getStiId(f.properties) === getStiId(aktivSti)
+      );
+      if (feat) drawElevationProfile(feat.geometry.coordinates);
+    });
+  </script>
+</body>
+</html>
