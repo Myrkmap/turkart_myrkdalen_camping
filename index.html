@@ -516,6 +516,11 @@
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+      showUserHeading: true
+    }), 'top-left');
 
     map.on('load', async () => {
 
