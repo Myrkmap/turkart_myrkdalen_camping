@@ -665,6 +665,7 @@
       document.getElementById('infopanel').classList.remove('open');
       if (aktivSti && map.getSource('stinett')) {
         map.setFeatureState({ source: 'stinett', id: getStiId(aktivSti) }, { active: false });
+        map.triggerRepaint();
       }
       aktivSti = null;
     }
@@ -921,6 +922,7 @@
         }
         aktivSti = feat.properties;
         map.setFeatureState({ source: 'stinett', id: fid }, { active: true });
+        map.triggerRepaint();
         opnePanel(feat.properties, feat.geometry.coordinates);
       });
 
@@ -1005,7 +1007,7 @@
         source: 'interessepunkt',
         filter: ['in', ['coalesce', ['get', 'ikon'], ['get', 'type']], ['literal', ['parkering', 'hytte', 'myrkdalen_camping', 'butikk']]],
         paint: {
-          'circle-radius':       ['interpolate', ['linear'], ['zoom'], 9, 14, 14, 22],
+          'circle-radius':       ['interpolate', ['linear'], ['zoom'], 9, 10, 14, 16],
           'circle-color':        '#ffffff',
           'circle-opacity':      0.92,
           'circle-blur':         0.15,
