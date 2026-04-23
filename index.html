@@ -287,6 +287,7 @@
   <div id="legende">
     <div class="legende-rad"><img src="ikoner/myrkdalen_camping.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;">Myrkdalen Camping</div>
     <div class="legende-rad"><div class="legende-farge" style="background:#CC0000"></div>Sti</div>
+    <div class="legende-rad"><div class="legende-farge" style="background:#00AD68"></div>Valt sti</div>
     <div class="legende-rad"><img src="ikoner/parking.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;">Parkering</div>
     <div class="legende-rad"><img src="ikoner/hytte.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;">Hytte</div>
     <div class="legende-rad"><img src="ikoner/butikk.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;">Butikk</div>
@@ -852,11 +853,40 @@
             13, 3,
             16, 5
           ],
-          'line-opacity': 0.95
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'active'], false],
+            0, 0.95
+          ]
         },
         layout: {
           'line-cap':  'round',
           'line-join': 'round'
+        }
+      }, 'stinett-klikk');
+
+      /* Lag D – aktiv (valt) sti i kontrastfarge */
+      map.addLayer({
+        id:     'stinett-aktiv',
+        type:   'line',
+        source: 'stinett',
+        layout: {
+          'line-cap':  'round',
+          'line-join': 'round'
+        },
+        paint: {
+          'line-color':   '#00AD68',
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'active'], false],
+            1, 0
+          ],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            9,  3,
+            13, 5,
+            16, 7
+          ]
         }
       }, 'stinett-klikk');
 
