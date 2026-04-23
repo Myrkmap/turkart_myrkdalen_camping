@@ -519,6 +519,11 @@
        HØGDEPROFIL  (Canvas)
        ================================================================ */
     function drawElevationProfile(coordinates) {
+      /* Flatar ut MultiLineString [[[x,y,z],...],[...]] → [[x,y,z],...] */
+      if (coordinates.length > 0 && Array.isArray(coordinates[0][0])) {
+        coordinates = coordinates.flat(1);
+      }
+
       const wrap   = document.getElementById('hoydeprofil-wrap');
       const canvas = document.getElementById('hoydeprofil');
       const dpr    = window.devicePixelRatio || 1;
@@ -639,8 +644,11 @@
       badge.style.background = FARGE_HEX[type] || FARGE_HEX.anna;
 
       /* Lengde – bruk lagra verdi eller rekn frå geometri */
-      const lengdeM = properties.lengde_m || properties.lengde
-                   || Math.round(ruteLengde(coordinates));
+      const flatCoords = (coordinates.length > 0 && Array.isArray(coordinates[0][0]))
+        ? coordinates.flat(1) : coordinates;
+      const lengdeM = properties.lengde_km
+                   ? Math.round(properties.lengde_km * 1000)
+                   : Math.round(ruteLengde(flatCoords));
       document.getElementById('panel-lengde').innerHTML   = formatLengde(lengdeM);
       document.getElementById('panel-stigning').innerHTML = '–';
 
