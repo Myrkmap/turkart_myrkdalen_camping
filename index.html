@@ -751,9 +751,15 @@
               id:   row.id,
               geometry: row.geometry,
               properties: {
-                ...row.properties,
-                id:      row.id,
-                _status: row.status
+                id:                row.id,
+                navn:              row.navn,
+                type:              row.type,
+                merka:             row.merka,
+                notat:             row.notat,
+                beskrivelse:       row.beskrivelse,
+                vanskelighetsgrad: row.vanskelighetsgrad,
+                lengde_km:         row.lengde_km,
+                bilete_url:        row.bilete_url
               }
             }))
         };
