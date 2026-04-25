@@ -694,6 +694,7 @@
       trackUserLocation: true,
       showUserHeading: true
     }), 'top-left');
+    map.addControl(new maplibregl.FullscreenControl(), 'top-left');
 
     map.on('load', async () => {
 
