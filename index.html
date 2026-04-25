@@ -1081,13 +1081,17 @@
     document.getElementById('nullstill-knapp').addEventListener('click', () => {
       hoveredObject = null;
       lukkPanel(); /* set aktivSti = null og oppdaterer lag */
-      map.flyTo({
-        center:   [6.429, 60.856],   /* Myrkdalen Camping */
-        zoom:     13,
-        pitch:    0,
-        bearing:  0,
-        duration: 1100
-      });
+      if (stinettBbox) {
+        map.fitBounds(stinettBbox, {
+          padding:  { top: 60, bottom: 60, left: 240, right: 60 },
+          pitch:    0,
+          bearing:  0,
+          duration: 1100,
+          maxZoom:  13
+        });
+      } else {
+        map.flyTo({ center: [6.429, 60.856], zoom: 12, pitch: 0, bearing: 0, duration: 1100 });
+      }
     });
 
     /* ================================================================
