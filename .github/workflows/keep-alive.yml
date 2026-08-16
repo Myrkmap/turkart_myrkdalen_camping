@@ -1,4 +1,4 @@
-name: Hald Supabase aktiv
+name: Hald Supabase aktiv 
 
 on:
   schedule:
