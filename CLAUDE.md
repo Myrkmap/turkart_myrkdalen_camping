@@ -68,14 +68,14 @@ SELECT ST_CoordDim(geom), ST_AsText(ST_StartPoint(geom))
 FROM features_import LIMIT 3;
 
 -- Insert til features (fyll inn attributtar her)
-INSERT INTO features (geom, navn, type, beskrivelse, merka, status)
+-- type: 'merka_sti' | 'umerka_terreng' | 'turveg'
+INSERT INTO features (geom, navn, type, beskrivelse, merka)
 SELECT
   geom,
   'Namnet på stien'   AS navn,
-  'sti'               AS type,
+  'merka_sti'         AS type,
   'Beskriving her'    AS beskrivelse,
-  true                AS merka,
-  'publisert'         AS status
+  true                AS merka
 FROM features_import;
 
 -- Rydd opp
