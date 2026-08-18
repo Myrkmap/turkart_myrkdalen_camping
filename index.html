@@ -412,14 +412,12 @@
     const FARGE_HEX = {
       umerka_terreng: '#E07B39',
       merka_sti:      '#2E7D32',
-      turveg:         '#1565C0',
-      anna:           '#757575'
+      turveg:         '#1565C0'
     };
     const TYPE_LABEL = {
       umerka_terreng: 'Umerka terreng',
       merka_sti:      'Merka sti',
-      turveg:         'Turveg',
-      anna:           'Anna'
+      turveg:         'Turveg'
     };
 
     /* ================================================================
@@ -448,31 +446,25 @@
     };
 
     /* ================================================================
-       NORMALISERING AV FELTNAMN
-       Støttar både eige format (fid, Merka, bilde, notat)
-       og spec-format (namn, type, lengde_m, bilete_url).
+       FELTNAMN FRÅ SUPABASE
        ================================================================ */
     function getStiType(props) {
       if (props.type) return props.type;
-      const m = props.merka ?? props.Merka;        // støttar både lower og upper case
-      if (m === true)  return 'merka_sti';
-      if (m === false) return 'umerka_terreng';
-      return 'anna';
+      if (props.merka === true)  return 'merka_sti';
+      return 'umerka_terreng';
     }
 
     function getStiNamn(props) {
-      return props.navn                            // Supabase (bokmål)
-          || props.namn                            // gamalt format (nynorsk)
-          || props.notat
+      return props.navn
           || (props.id ? `Sti #${props.id.slice(0,8)}` : 'Ukjend sti');
     }
 
     function getStiId(props) {
-      return props.id ?? props.fid ?? props.namn ?? null;
+      return props.id ?? null;
     }
 
     function getStiBilete(props) {
-      return props.bilete_url || props.bilde || null;
+      return props.bilete_url || null;
     }
 
     /* ================================================================
@@ -757,7 +749,7 @@
               properties: {
                 ...row.properties,
                 id:      row.id,
-                _status: row.status
+                _status: null
               }
             }))
         };
